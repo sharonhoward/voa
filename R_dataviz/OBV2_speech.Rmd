@@ -1,0 +1,468 @@
+---
+title: "OBV2 Speech Notebook"
+output: html_notebook
+---
+
+OBV2 Speech 1781-1880
+==============
+
+Explore relationships between trial total words, trial total speech and defendant total speech
+
+
+
+About this file
+---------
+
+This is the html output of an [R Notebook](http://rmarkdown.rstudio.com/r_notebooks.html). You can view all the R code in this page, but in addition you can download the R Markdown file from which the web page is generated [here](OBV2_speech.Rmd), and the underlying data is [here](obv_defendants_trials.tsv)
+
+When viewing this page, chunks of code can easily be hidden for convenience (to hide/show all at once click on the '''Code''' button at the top of the page). There are additional notes at the bottom of this page on how to work with an .Rmd file in RStudio. 
+
+About the data
+--------------
+
+Summary data about single-defendant Old Bailey Online trials 1780-1880 in sessions that have been tagged in the Old Bailey Corpus (v2). This includes OBO trial reference and session date; whether a trial report contains taggable direct speech; whether the defendant speaks in the trial; total word count; spoken word count; spoken word and utterance counts for the defendant; count of OBC-tagged 'utterances'; counts of types of utterance for defendants; offence, verdict and sentence categories; defendant name, gender, age (if present) and occupation (as tagged, if present).
+
+* Trials with multiple defendants have been excluded from the dataset because of the added complexity of matching them to utterances (and they aren't always named individually).
+* A few OBC sessions have been excluded from the dataset because of tagging issues.
+
+Some naming conventions
+--------------
+
+* obc tagging type 
+    * tagged
+    * untagged
+* speech type
+    * no_speech (equivalent to untagged)
+    * deft_speaks
+    * deft_silent
+* utterance type (OBC &lt;u&gt; tags) 
+    * q - question
+    * a - answer
+    * d - prisoner's defence
+    * s - other unclassified statement (a very few might be q/a/d that I missed)
+* vercat = obo verdict category
+    * g = guilty
+    * ng = not guilty
+    * g_ng = guilty+not guilty (ie, excludes misc, special etc)
+
+
+R preliminaries
+------------
+
+(required packages, functions, etc)
+
+```{r}
+# packages
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+```
+
+```{r}
+# look and feel, reusable non-data components
+
+## legend on top, text smaller than default
+## problem: this squishes graphs vertically and I haven't worked out how to change that behaviour...
+set_graphs_theme_ltop <- theme(
+  legend.position = "top", 
+  axis.text=element_text(size=6), 
+  title=element_text(size=8), 
+  legend.title=element_text(size=8), 
+  legend.text=element_text(size=6), 
+  plot.title=element_text(size=16)
+  )
+
+# same but legend to the side
+set_graphs_theme_g <- theme(
+  axis.text=element_text(size=6), 
+  title=element_text(size=8), 
+  legend.title=element_text(size=8), 
+  legend.text=element_text(size=6), 
+  plot.title=element_text(size=16)
+  )
+
+# hide legend
+set_graphs_theme_ln <- theme(
+  legend.position = "none", 
+  axis.text=element_text(size=6), 
+  title=element_text(size=8), 
+  legend.title=element_text(size=8), 
+  legend.text=element_text(size=6), 
+  plot.title=element_text(size=16)
+  )
+
+# Multiple plot function (from R Cookbook)
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+
+
+```
+
+
+Get the data 
+-------
+
+Get full data; exclude 1784 (only one trial for entire year) and 1780 so we have 100 years not 101
+
+
+[full dataset in TSV file](obv_defendants_trials.tsv)
+
+```{r}
+# read in the full data
+## (NB the TSV file has been exported from a MySQL database)
+
+obv2_defendants_trials <- read.table("obv_defendants_trials.tsv",
+                   header=TRUE,
+                   sep="\t")
+
+### filter: exclude 1784 (single trial) and 1780, trim down to needed fields only
+
+obv2_f_trials <- obv2_defendants_trials %>% filter(year != 1784, year !=1780) %>% select(obo_trial, year, trial_tagged, speech, trial_u_count, trial_speech_wc, trial_total_wc, deft_u_count, deft_total_wc, deft_gender, deft_age, deft_offcat, deft_vercat, deft_puncat)
+
+### filter out misc, special verdicts etc (there are too few of them)
+
+obv2_f_trials_g_ng <- obv2_f_trials %>% filter(grepl('uilty',deft_vercat) )
+```
+
+```{r}
+
+## add tt column for tagged/untagged trials (*requires plyr)
+### probably ought to have done this before exporting from MySQL, ho hum
+
+obv2_f_trials$tagging <- 
+  revalue(obv2_f_trials$speech, c("deft_speaks"="tagged", "deft_silent"="tagged", "no_speech"="untagged"))
+
+## filter out untagged trials and add speech wc % of total wc column
+## don't forget you need to force R to treat speech word count columns as numeric
+
+obv2_f_tagged_trials_speech_pc_total <- 
+  obv2_f_trials %>% 
+  filter(tagging == 'tagged') %>% 
+  mutate(speech_pc_of_total_words = as.numeric(as.character(trial_speech_wc)) * 100/ trial_total_wc )
+
+## then filter for defendant speaks trials only
+## temporary hack - remove t17820220-44 because of counting error 
+## this is my innocent face :-)
+obv2_f_deft_spks_trials <- 
+  obv2_f_tagged_trials_speech_pc_total %>% 
+  filter(speech == "deft_speaks", obo_trial != 't17820220-44')
+
+# add deft word count % of total speech
+
+obv2_f_deft_spks_trials_pc_speech <- 
+  obv2_f_deft_spks_trials %>% 
+  mutate(deft_pc_of_speech = as.numeric(as.character(deft_total_wc)) * 100 / as.numeric(as.character(trial_speech_wc)) )
+
+
+```
+
+
+```{r}
+
+#summarise data
+
+### annual counts, all trials
+
+obv2_f_all_per_year <- 
+  obv2_f_trials %>% 
+  select(year) %>% 
+  group_by(year) %>% 
+  summarise(n_trials = n())
+
+### annual counts, tagged trials only
+
+obv2_f_tagged_per_year <- 
+  obv2_f_tagged_trials_speech_pc_total %>% 
+  select(year) %>% 
+  group_by(year) %>% 
+  summarize(n_tagged = n())
+
+### join them up (this seems clunky: was it really the best way?)
+
+obv2_f_tagged_join_all_per_year <- 
+  obv2_f_tagged_per_year %>% 
+  inner_join(obv2_f_all_per_year, by ='year')
+
+### add percentage
+
+obv2_f_tagged_join_all_pc_per_year <- 
+  obv2_f_tagged_join_all_per_year %>% 
+  mutate(pc_tagged = n_tagged * 100 / n_trials)
+
+
+```
+
+```{r}
+
+obv2_f_tagged_wordcount_per_u <- 
+  obv2_f_tagged_trials_speech_pc_total %>% 
+  mutate(wordcount_per_u = as.numeric(as.character(trial_speech_wc)) / as.numeric(as.character(trial_u_count)) )
+
+obv2_f_tagged_wordcount_per_u_avg_year <- 
+  obv2_f_tagged_wordcount_per_u %>% 
+  group_by(year) %>% 
+  summarize( n_trials = n(), avg_u_count = mean(as.numeric(as.character(trial_u_count)) ), avg_wdct_u = mean(wordcount_per_u ) )
+
+obv2_f_tagged_wdct_ucount_year_gathered <- 
+  gather(obv2_f_tagged_wordcount_per_u_avg_year, value="count", key="type", avg_u_count, avg_wdct_u)
+
+obv2_f_deft_spks_trials_pc_speech_avg_year <- 
+  obv2_f_deft_spks_trials_pc_speech %>% 
+  group_by(year) %>% 
+  summarize( avg_dept_pc_speech = mean(deft_pc_of_speech) )
+
+```
+
+Visualisations
+-------------
+
+NB: many of these use log scales for the y axis, so if comparing different graphs you need to look carefully at the scales.
+
+### Percentage of trials that contain speech
+
+```{r}
+
+ggplot(data = obv2_f_tagged_join_all_pc_per_year, mapping = aes(x=year, y=pc_tagged)) + 
+  geom_line() + geom_smooth(se=FALSE) +
+  labs(y="percentage of trials")
+```
+
+### Speech as percentage of total words (all tagged trials)
+
+```{r}
+ggplot(data=obv2_f_tagged_trials_speech_pc_total, mapping = aes(x=year, y=speech_pc_of_total_words)) + 
+  geom_jitter(size=0.01,width=1.25) + geom_smooth() +
+  labs(y="percentage of total words")
+
+
+```
+### Speech as % of total words, comparing defendant speaks/silent trials (faceted)
+
+```{r}
+ggplot(data = obv2_f_tagged_trials_speech_pc_total, mapping = aes(x=year, y=speech_pc_of_total_words,colour=speech)) +
+  geom_jitter(size=0.02, width=1.2, alpha=1/2) +
+  geom_smooth(se=FALSE, size=0.5) + 
+  facet_wrap(~speech) +
+  set_graphs_theme_ln 
+
+```
+
+
+### Total word counts, all trials
+
+(looks familiar!)
+
+```{r}
+ggplot(data=obv2_f_trials, mapping = aes(x=year, y=log(trial_total_wc))) + 
+    geom_jitter(size=0.01, width=1.25) + 
+    geom_smooth(se=FALSE, size=0.5) +
+  set_graphs_theme_g +
+  labs(y="total word count (log scale)")
+```
+
+### Total word counts, compare guilty and not guilty verdicts
+
+
+```{r}
+ggplot( data=obv2_f_trials_g_ng, mapping = aes(x=year, y=log(trial_total_wc), color=deft_vercat ) ) + 
+    geom_jitter(size=0.01, width=1.2, alpha=1/2) + 
+    geom_smooth(se=FALSE, size=0.5) +
+  set_graphs_theme_g +
+  labs(y="total word count (log scale)")
+```
+
+### same again, faceted
+
+```{r}
+ggplot(data=obv2_f_trials_g_ng, mapping = aes(x=year, y=log(trial_total_wc), color=deft_vercat ) ) +
+    geom_jitter(size=0.01, width=1.25, alpha=1/4) + 
+    geom_smooth(se=FALSE, size=0.8) +
+  facet_wrap(~deft_vercat) +
+  set_graphs_theme_ln 
+```
+
+
+
+### Total word counts, compare deft_offcat (faceted)
+
+
+```{r}
+ggplot(data=obv2_f_trials, mapping = aes(x=year, y=log(trial_total_wc), color=deft_offcat ) ) +
+    geom_jitter(size=0.01, width=1.25) + 
+    #geom_smooth(se=FALSE, size=0.8) +
+  labs(y="total word count") +
+  facet_wrap(~deft_offcat) +
+  set_graphs_theme_ln 
+```
+
+
+### Total word counts comparing speech/no speech
+
+```{r}
+ggplot(data=obv2_f_trials, mapping = aes(x=year, y=log(trial_total_wc), color=tagging)) + 
+    geom_jitter(size=0.01, width=1.2, alpha=1/2) + 
+    geom_smooth(size=0.5) +
+    set_graphs_theme_g +
+  #guides(color = guide_legend(override.aes = list(size=1))) +
+  labs(y="total word count (log scale)")
+```
+
+
+### Total word counts comparing tagging/defendant speaks/silent
+
+```{r}
+ggplot(data=obv2_f_trials, mapping = aes(x=year, y=log(trial_total_wc), color=speech)) + 
+    geom_jitter(size=0.01, width=1.2, alpha=1/2) + 
+  geom_smooth(size=0.5) +
+  labs(y="total word count") +
+   set_graphs_theme_g +
+  guides(color = guide_legend(override.aes = list(size=1)))
+```
+
+### Speech word counts, all tagged trials
+
+```{r}
+ggplot(data=obv2_f_tagged_trials_speech_pc_total, mapping = aes(x=year, y=log(as.numeric(as.character(trial_speech_wc)) ))) + 
+    geom_jitter(size=0.01, width=1.25) + 
+    geom_smooth(se=FALSE, size=0.5) +
+  labs(y="speech word count") +
+  set_graphs_theme_g
+```
+
+### Speech word counts, compare defendant speaks/silent trials
+
+```{r}
+ggplot(data=obv2_f_tagged_trials_speech_pc_total, mapping = aes(x=year, y=log(as.numeric(as.character(trial_speech_wc))), color=speech )) + 
+    geom_jitter(size=0.01, width=1.2, alpha=1/2) + 
+    geom_smooth(se=FALSE, size=0.5) +
+  set_graphs_theme_g +
+  labs(y="speech word count")
+```
+### same again, faceted...
+
+```{r}
+ggplot(data=obv2_f_tagged_trials_speech_pc_total, mapping = aes(x=year, y=log(as.numeric(as.character(trial_speech_wc))), color=speech )) + 
+    geom_jitter(size=0.01, width=1.2, alpha=1/3) + 
+    geom_smooth(se=FALSE, size=0.7) +
+  facet_wrap(~speech) +
+  set_graphs_theme_ln +
+  labs(y="speech word count")
+```
+
+### Speech word counts, compare deft_gender
+
+```{r}
+ggplot(data=obv2_f_tagged_trials_speech_pc_total, mapping = aes(x=year, y=log(as.numeric(as.character(trial_speech_wc)) ),colour=deft_gender )) + 
+    geom_jitter(size=0.01, width=1.25, alpha=1/4) + 
+    geom_smooth(se=FALSE, size=0.8) +
+  facet_wrap(~deft_gender) +
+  set_graphs_theme_ln +
+  labs(y="speech word count")
+```
+
+```{r}
+
+ggplot(data=obv2_f_tagged_trials_speech_pc_total, mapping = aes(x=year, y=log(as.numeric(as.character(trial_speech_wc))), color=deft_offcat) ) + 
+  geom_jitter(size=0.02, width=1.2) + 
+  set_graphs_theme_ln +
+  facet_wrap(~deft_offcat) +
+  labs(y="speech word count")
+
+```
+
+
+
+
+
+### defendant speech as % of total speech
+
+```{r}
+ggplot(data=obv2_f_deft_spks_trials_pc_speech, mapping = aes(x=year, y=deft_pc_of_speech)) + 
+  geom_jitter(size=0.01, width=1.25) + 
+  geom_smooth() +
+  set_graphs_theme_g
+
+
+```
+
+
+
+### same, breakdown by gender
+
+
+```{r}
+ggplot(data=obv2_f_deft_spks_trials_pc_speech, mapping = aes(x=year, y=deft_pc_of_speech, colour=deft_gender)) + 
+  geom_jitter(size=0.02, width=1.2, alpha=1/2) + 
+  geom_smooth(se=FALSE, size=0.5) +
+  set_graphs_theme_g
+
+
+```
+
+
+```{r}
+ggplot(data=obv2_f_deft_spks_trials_pc_speech, mapping = aes(x=year, y=deft_pc_of_speech, colour=deft_gender)) + 
+  geom_jitter(size=0.02, width=1.2, alpha=1/2) + 
+  geom_smooth(se=FALSE, size=0.5) +
+  set_graphs_theme_ln +
+  facet_wrap(~deft_gender) 
+
+
+```
+
+
+
+
+----
+
+[R Markdown](http://rmarkdown.rstudio.com) Notebook 
+
+* When you execute code within the notebook, the results appear beneath the code. 
+* Execute a chunk of code by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+* Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+* When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).

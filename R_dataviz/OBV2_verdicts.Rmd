@@ -1,0 +1,423 @@
+---
+title: "OBV2 Verdicts Notebook"
+output: html_notebook
+---
+
+
+OBV2 Verdicts 1781-1880
+==============
+
+Explore trial verdicts comparing presence of tagged speech and defendant speech. 
+
+This is the html output of an R Notebook. The underlying dataset is [here](obv_defendants_trials.tsv). The R Markdown file from which it is generated is [here](OBV2_verdicts.Rmd). The chunks of R code can be hidden for convenience (to hide/show all at once click on the '''Code''' button at the top of the page).
+
+About the data
+--------------
+
+Summary data about single-defendant Old Bailey Online trials 1780-1880 in sessions that have been tagged in the Old Bailey Corpus (v2). This includes OBO trial reference and session date; whether a trial report contains taggable direct speech; whether the defendant speaks in the trial; total word count; spoken word count; spoken word and utterance counts for the defendant; count of OBC-tagged 'utterances'; counts of types of utterance for defendants; offence, verdict and sentence categories; defendant name, gender, age (if present) and occupation (as tagged, if present).
+
+* Trials with multiple defendants have been excluded from the dataset because of the added complexity of matching them to utterances (and they aren't always individually named).
+* A few OBC sessions have been excluded from the dataset because of tagging issues.
+
+Some naming conventions
+--------------
+
+* tt = obc tagging type 
+    * tagged
+    * untagged
+* speech type
+    * no_speech (equivalent to untagged)
+    * deft_speaks
+    * deft_silent
+
+* vercat = obo verdict category
+    * g = guilty
+    * ng = not guilty
+    * gng = guilty+not guilty (ie, excludes misc, special etc)
+
+ 
+
+R preliminaries
+------------
+
+required packages, functions, etc
+
+```{r}
+# necessary packages
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+```
+
+```{r}
+# reusable non-data things + functions (ooh-err)
+
+set_graphs_theme_ltop <- theme(legend.position = "top", axis.text=element_text(size=6), title=element_text(size=8), legend.title=element_text(size=8), legend.text=element_text(size=6), plot.title=element_text(size=16))
+
+set_graphs_theme_g <- theme(axis.text=element_text(size=6), title=element_text(size=8), legend.title=element_text(size=8), legend.text=element_text(size=6), plot.title=element_text(size=16))
+
+# Multiple plot function
+#
+# ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
+# - cols:   Number of columns in layout
+# - layout: A matrix specifying the layout. If present, 'cols' is ignored.
+#
+# If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
+# then plot 1 will go in the upper left, 2 will go in the upper right, and
+# 3 will go all the way across the bottom.
+#
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
+```
+
+
+
+Get the data 
+----
+
+Get full data; filter to guilty/not guilty verdicts only, exclude 1784 (only one trial for entire year), remove 1780
+
+[full dataset in TSV file](obv_defendants_trials.tsv)
+
+
+```{r}
+# read in the full data
+obv2_defendants_trials <- read.table("obv_defendants_trials.tsv",
+                   header=TRUE,
+                   sep="\t")
+
+### filter: guilty/not guilty verdicts only; exclude 1784 (single trial) and 1780 
+
+obv2_f_gng <- obv2_defendants_trials %>% filter(grepl('uilty',deft_vercat), year != 1784, year !=1780)
+
+## add tt column for tagged/untagged trials (*requires plyr)
+
+obv2_f_gng$tt <- revalue(obv2_f_gng$speech, c("deft_speaks"="tagged", "deft_silent"="tagged", "no_speech"="untagged"))
+
+```
+
+### Summarise data 
+
+Breakdowns (all by year +) by tagged type, speech type, verdict categories.
+
+```{r}
+### all trials
+
+obv2_gng_year <- obv2_f_gng %>% select(year) %>% group_by(year) %>% summarise(n_trials = n())
+
+
+### breakdown by tagged type
+
+obv2_gng_year_tagged <- obv2_f_gng %>% select(year, tt) %>% group_by(year, tt) %>% summarise(n_tt = n())
+
+
+### breakdown by speech type
+
+obv2_gng_year_speech <- obv2_f_gng %>% select(year, speech) %>% group_by(year, speech) %>% summarise(n_speech = n())
+
+# same but add tagged type column
+
+obv2_gng_year_speech_tt <- obv2_f_gng %>% select(year, speech, tt) %>% group_by(year, speech, tt) %>% summarise(n_speech = n())
+
+### breakdown by vercat
+
+obv2_gng_year_vercat <- obv2_f_gng %>% select(year, deft_vercat) %>% group_by(year, deft_vercat) %>% summarise(n_vercat = n())
+
+### breakdown by vercat and tagged type
+
+obv2_gng_year_vercat_tt <- obv2_f_gng %>% select(year, deft_vercat, tt) %>% group_by(year, deft_vercat,tt) %>% summarise(n_vercat_tt = n())
+
+### breakdown by speech type and vercat 
+
+obv2_gng_year_speech_vercat <- obv2_f_gng %>% select(year, speech, deft_vercat) %>% group_by(year, speech, deft_vercat) %>% summarise(n_speech_vercat = n())
+
+
+
+
+```
+
+Visualisations
+-----------
+
+Start with comparisons of tagged/untagged trials and of speech types without verdict breakdowns.
+
+### Stacked chart: count of tagged / untagged trials 
+
+a) area chart (smooths out gaps)
+
+```{r}
+ggplot(data=obv2_gng_year_tagged, aes(x=year,y=n_tt)) + 
+  geom_area(position="stack",stat='identity', aes(fill=tt)) +
+  set_graphs_theme_g + labs(y="number of trials", fill="type")
+```
+
+b) bar chart
+
+```{r}
+ggplot(data=obv2_gng_year_tagged, aes(x=year, y=n_tt)) +
+  geom_bar(position="stack",stat='identity', aes(fill=tt)) +
+  set_graphs_theme_g + labs(y="number of trials", fill="type")
+```
+
+### Same data, unstacked 
+
+[corrected error, earlier version was using completely wrong data!]
+
+```{r}
+ggplot(data=obv2_gng_year_tagged, aes(x=year, y=n_tt)) +
+  geom_bar(position="dodge",stat='identity', aes(fill=tt)) +
+  set_graphs_theme_g + labs(y="number of trials", fill="type")
+
+```
+
+
+
+### Stacked proportional chart: tagged / untagged trials
+
+
+```{r}
+# percent_format requires scales package
+
+ggplot(obv2_gng_year_tagged, aes(x = year, y = n_tt)) + 
+  geom_area(position="fill",stat='identity', aes(fill = tt)) + 
+  scale_y_continuous(labels = percent_format()) + 
+  set_graphs_theme_g + labs(y="% of trials", fill="type")
+
+```
+
+### Stacked proportional chart: speech types (deft silent/deft speaks/no speech), all trials
+
+(no_speech is exactly the same as untagged above)
+
+```{r}
+# all trials: by speech types
+ggplot(obv2_gng_year_speech,aes(x = year, y = n_speech)) + 
+  geom_area(position="fill",stat='identity', aes(fill = speech)) + 
+  scale_y_continuous(labels = percent_format()) + 
+  set_graphs_theme_g + labs(y="% of trials", fill="speech type")
+
+
+```
+
+### Stacked proportional chart: speech types, tagged trials only
+
+removed untagged trials to compare defendant speaks / silent
+
+```{r}
+
+obv2_gng_year_speech_tt %>% filter(tt=='tagged') %>% 
+  ggplot(aes(x = year, y = n_speech)) + 
+  geom_area(position="fill",stat='identity', aes(fill=speech)) + 
+  scale_y_continuous(labels = percent_format()) + 
+  set_graphs_theme_g + labs(y="% of trials", fill="speech type")
+
+```
+
+Bring in the verdicts
+
+### Stacked chart: count of guilty/not guilty, all trials
+
+```{r}
+ggplot(data=obv2_gng_year_vercat, aes(x=year,y=n_vercat)) + 
+  geom_area(position="stack",stat='identity', aes(fill=deft_vercat)) + 
+  set_graphs_theme_g + 
+  labs(y="number of verdicts", fill="verdict\ncategory")
+```
+
+Bar chart
+
+```{r}
+ggplot(data=obv2_gng_year_vercat, aes(x=year,y=n_vercat)) + 
+  geom_bar(position="stack",stat='identity', aes(fill=deft_vercat)) + 
+  set_graphs_theme_g + 
+  labs(y="number of verdicts", fill="verdict\ncategory")
+```
+
+
+```{r}
+ggplot(data=obv2_gng_year_vercat, aes(x=year,y=n_vercat)) + 
+  geom_bar(position="dodge",stat='identity', aes(fill=deft_vercat)) + 
+  set_graphs_theme_g + 
+  labs(y="number of verdicts", fill="verdict\ncategory")
+
+```
+
+
+
+
+### Stacked proportional chart: guilty/not guilty, all trials
+
+```{r}
+ggplot(obv2_gng_year_vercat,aes(x = year, y = n_vercat)) + 
+  geom_area(position="fill",stat='identity', aes(fill=deft_vercat)) + 
+  scale_y_continuous(labels = percent_format()) + 
+  set_graphs_theme_g + labs(y="% of verdicts", fill="verdict\ncategory")
+```
+
+### We can compare normal stacked and proportional
+
+
+```{r}
+# slight tweak to y axis margin in first plot so they align
+multiplot(
+  ggplot(data=obv2_gng_year_vercat, aes(x=year,y=n_vercat)) + 
+  geom_area(position="stack",stat='identity', aes(fill=deft_vercat)) + 
+  set_graphs_theme_g +  
+  theme(axis.title.y=element_text(margin=margin(0,10,0,0))) +
+  labs(y="number of verdicts", fill="verdict\ncategory")
+  ,
+  ggplot(obv2_gng_year_vercat,aes(x = year, y = n_vercat)) + 
+  geom_area(position="fill",stat='identity', aes(fill=deft_vercat)) + 
+  scale_y_continuous(labels = percent_format()) + 
+  set_graphs_theme_g + labs(y="% of verdicts", fill="verdict\ncategory")
+)
+```
+
+
+### Stacked proportional chart: guilty/not guilty verdicts, tagged trials only
+
+```{r}
+obv2_gng_year_vercat_tt %>% filter(tt =='tagged') %>% 
+  ggplot(aes(x = year, y = n_vercat_tt)) + 
+  geom_area(position="fill",stat='identity', aes(fill=deft_vercat)) + 
+  scale_y_continuous(labels = percent_format()) +
+  set_graphs_theme_g + labs(y="% of verdicts", fill="verdict\ncategory")
+```
+
+### Stacked proportional chart: guilty/not guilty verdicts, untagged trials only
+
+
+```{r}
+# no_speech trials, guilty/not guilty 
+obv2_gng_year_vercat_tt %>% filter(tt =='untagged') %>%   
+  ggplot(aes(x = year, y = n_vercat_tt)) + 
+  geom_area(position="fill",stat='identity', aes(fill=deft_vercat)) + 
+  scale_y_continuous(labels = percent_format()) +
+  set_graphs_theme_g + labs(y="% of verdicts", fill="verdict \ncategory")
+
+```
+
+### Stacked proportional chart: guilty/not guilty verdicts, defendant_speaks only
+
+
+```{r}
+
+obv2_gng_year_speech_vercat %>% filter(speech =='deft_speaks') %>%   
+  ggplot(aes(x = year, y = n_speech_vercat)) + 
+  geom_area(position="fill",stat='identity', aes(fill=deft_vercat)) + 
+  scale_y_continuous(labels = percent_format())  +
+  set_graphs_theme_g + labs(y="% of verdicts", fill="verdict \ncategory")
+
+```
+
+### Stacked proportional chart: guilty/not guilty verdicts, deft_silent only
+
+```{r}
+# deft_silent trials only, guilty/not guilty
+obv2_gng_year_speech_vercat %>% filter(speech =='deft_silent') %>%   
+  ggplot(aes(x = year, y = n_speech_vercat)) + 
+  geom_area(position="fill",stat='identity', aes(fill=deft_vercat)) + 
+  scale_y_continuous(labels = percent_format()) +
+  set_graphs_theme_g + labs(y="% of verdicts", fill="verdict \ncategory")
+
+```
+
+### Compare guilty/not guilty for speech types
+
+```{r}
+
+ggplot(data=obv2_gng_year_speech_vercat,aes(x = year, y = n_speech_vercat)) + 
+  geom_area(position="fill",stat='identity', aes(fill=deft_vercat)) + 
+  scale_y_continuous(labels = percent_format()) + 
+  facet_grid(speech ~ .) + 
+  set_graphs_theme_g  + labs(y="% of verdicts", fill="verdict\ncategory")
+
+```
+
+### Compare tagged/untagged for guilty/not guilty verdicts
+
+```{r}
+
+ggplot(obv2_gng_year_vercat_tt, aes(x = year, y = n_vercat_tt)) + 
+  geom_area(position="fill",stat='identity', aes(fill=tt)) + 
+  scale_y_continuous(labels = percent_format()) + 
+  facet_grid(. ~ deft_vercat) + 
+  set_graphs_theme_g + labs(y="% of trials", fill="type")
+
+```
+or...
+
+
+```{r}
+
+ggplot(obv2_gng_year_vercat_tt, aes(x = year, y = n_vercat_tt)) + 
+  geom_bar(position="fill",stat='identity', aes(fill=tt)) + 
+  scale_y_continuous(labels = percent_format()) + 
+  facet_grid(deft_vercat~.) + 
+  set_graphs_theme_g + labs(y="% of trials", fill="type")
+
+```
+
+
+### Compare speech types for guilty/not guilty
+
+```{r}
+
+ggplot(obv2_gng_year_speech_vercat,aes(x = year, y = n_speech_vercat)) + 
+  geom_area(position="fill",stat='identity', aes(fill=speech)) + 
+  scale_y_continuous(labels = percent_format()) + 
+  facet_grid(. ~ deft_vercat) + 
+  set_graphs_theme_g + labs(y="% of trials", fill="speech\ntype")
+
+```
+
+```{r}
+multiplot(
+ggplot(data=obv2_gng_year_vercat, aes(x=year,y=n_vercat)) + 
+  geom_bar(position="stack",stat='identity', aes(fill=deft_vercat)) + 
+  set_graphs_theme_g + 
+  labs(y="number of verdicts", fill="verdict\ncategory")
+  ,
+obv2_gng_year_speech_vercat %>% filter(speech =='deft_speaks') %>%   
+  ggplot(aes(x = year, y = n_speech_vercat)) + 
+  geom_bar(position="fill",stat='identity', aes(fill=deft_vercat)) + 
+  scale_y_continuous(labels = percent_format())  +
+  set_graphs_theme_g + labs(y="% of verdicts", fill="verdict \ncategory")
+)
+```
