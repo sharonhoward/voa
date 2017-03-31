@@ -38,34 +38,36 @@ OBO offence, verdict and sentence data is simplified. In an OBO trial there may 
 
 ### data fields
 
-* o2dtid - unique ID for data table (has no other meaning)
-* obo_trial - OBO trial ID
-* obo_deftid - OBO defendant ID
-* sess_date - OBO session date yyyymmdd
-* year - OBO session year
-* trial_tagged - Whether the trial is tagged in OBC as containing speech (1=yes, 0=no)
-* def_spk - Whether there is tagged defendant speech (short code): 1=yes, 0=no, NULL=no tagged speech
-* speech - Whether there is tagged defendant speech ("deft_speaks", "deft_silent", or untagged trial="no_speech")
-* trial_u_count - Count of OBC "utterances" (tagged trials only)
-* trial_speech_wc - Total wordcount for OBC-tagged speech (tagged trials only)
-* trial_total_wc - Total wordcount for trial report in OBO (all trials)
-* deft_u_count - Count of OBC utterances by defendant
-* deft_total_wc - Total wordcount for OBC-tagged speech by defendant
-* deft_u_q - Count of questions asked by defendant
-* deft_u_a - Count of answers by defendant
-* deft_u_d - Count of defence statements by defendant
-* deft_u_s - Count of other statements by defendant
-* deft_given - Defendant given name (as tagged in OBO)
-* deft_surname - Defendant surname (OBO)
-* deft_gender - Defendant gender (OBO)
-* deft_age - Defendant age (OBO) (NULL if no tagged age)
-* deft_occupation - Defendant occupation as tagged in OBO
-* deft_offcat - Offence category as tagged in OBO
-* deft_offsub - Offence sub-category as tagged in OBO
-* deft_vercat - Verdict category as tagged in OBO
-* deft_versub - Verdict sub-category as tagged in OBO
-* deft_puncat - Sentence category as tagged in OBO
-* deft_punsub - Sentence sub-category as tagged in OBO
+| Field label | Description |
+| ---------- | ------------ |
+| o2dtid | unique ID for data table (has no other meaning) |
+| obo_trial | OBO trial ID |
+| obo_deftid | OBO defendant ID |
+| sess_date | OBO session date yyyymmdd |
+| year | OBO session year |
+| trial_tagged | Whether the trial is tagged in OBC as containing speech (1=yes, 0=no) |
+| def_spk | Whether there is tagged defendant speech (short code): 1=yes, 0=no, NULL=no tagged speech |
+| speech | Whether there is tagged defendant speech ("deft_speaks", "deft_silent", or untagged trial="no_speech") |
+| trial_u_count | Count of OBC "utterances" (tagged trials only) |
+| trial_speech_wc | Total wordcount for OBC-tagged speech (tagged trials only) |
+| trial_total_wc | Total wordcount for trial report in OBO (all trials) |
+| deft_u_count | Count of OBC utterances by defendant |
+| deft_total_wc | Total wordcount for OBC-tagged speech by defendant |
+| deft_u_q | Count of questions asked by defendant |
+| deft_u_a | Count of answers by defendant |
+| deft_u_d | Count of defence statements by defendant |
+| deft_u_s | Count of other statements by defendant |
+| deft_given | Defendant given name (as tagged in OBO) |
+| deft_surname | Defendant surname (OBO) |
+| deft_gender | Defendant gender (OBO) |
+| deft_age | Defendant age (OBO) (NULL if no tagged age) |
+| deft_occupation | Defendant occupation as tagged in OBO |
+| deft_offcat | Offence category as tagged in OBO |
+| deft_offsub | Offence sub-category as tagged in OBO |
+| deft_vercat | Verdict category as tagged in OBO |
+| deft_versub | Verdict sub-category as tagged in OBO |
+| deft_puncat | Sentence category as tagged in OBO |
+| deft_punsub | Sentence sub-category as tagged in OBO |
 
 
 Words data
@@ -84,21 +86,163 @@ For the subset of single-defendant trials:
 
 ### data fields
 
-* obv2wid - dataset unique ID
-* sess_date - OBO session date
-* year - OBO session year
-* obo_trial - OBO trial ID
-* obo_deftid - OBO defendant ID
-* obc_u_no - OBC utterance number in trial
-* obc_event - OBC event ID
-* obc_speaker - OBC speaker ID
-* obc_sex - OBC sex of speaker
-* obc_hiscoLabel - OBC hisco data for speaker
-* obc_hiscoCode - OBC hisco data for speaker
-* obc_class - OBC hisco data for speaker
-* obc_role - OBC speaker role
-* obv_role - OBV speaker role: def=defendant; wv= witness or victim; lj = lawyer or judge; jur=juror
-* words - text of words
-* obv_words_type - OBV assigned words type: q=question; a=answer; d=prisoner's defence statement; s=other statement
-* words_count - OBC word count
-* defendant - name of defendant in trial
+| Field label | Description |
+| ---------- | ------------ |
+| obv2wid | dataset unique ID |
+| sess_date | OBO session date |
+| year | OBO session year |
+| obo_trial | OBO trial ID |
+| obo_deftid | OBO defendant ID |
+| obc_u_no | OBC utterance number in trial |
+| obc_event | OBC event ID |
+| obc_speaker | OBC speaker ID |
+| obc_sex | OBC sex of speaker |
+| obc_hiscoLabel | OBC hisco data for speaker |
+| obc_hiscoCode | OBC hisco data for speaker |
+| obc_class | OBC hisco data for speaker |
+| obc_role | OBC speaker role |
+| obv_role | OBV speaker role: def=defendant; wv= witness or victim; lj = lawyer or judge; jur=juror |
+| words | text of words |
+| obv_words_type | OBV assigned words type: q=question; a=answer; d=prisoner's defence statement; s=other statement |
+| words_count | OBC word count |
+| defendant | name of defendant in trial |
+
+Offence, verdict and sentence categories and subcategories
+--------------------------------------------------
+
+### Offences
+
+| offcat | offsubcat |
+| ------- | ---------- |
+| breakingPeace | assault |
+| breakingPeace | barratry |
+| breakingPeace | libel |
+| breakingPeace | other |
+| breakingPeace | riot |
+| breakingPeace | threateningBehaviour |
+| breakingPeace | vagabond |
+| breakingPeace | wounding |
+| damage | arson |
+| damage | other |
+| deception | bankrupcy |
+| deception | forgery |
+| deception | fraud |
+| deception | other |
+| deception | perjury |
+| kill | infanticide |
+| kill | manslaughter |
+| kill | murder |
+| kill | other |
+| kill | pettyTreason |
+| miscellaneous | concealingABirth |
+| miscellaneous | conspiracy |
+| miscellaneous | habitualCriminal |
+| miscellaneous | illegalAbortion |
+| miscellaneous | kidnapping |
+| miscellaneous | other |
+| miscellaneous | pervertingJustice |
+| miscellaneous | piracy |
+| miscellaneous | returnFromTransportation |
+| royalOffences | coiningOffences |
+| royalOffences | other |
+| royalOffences | religiousOffences |
+| royalOffences | seditiousLibel |
+| royalOffences | seditiousWords |
+| royalOffences | seducingAllegiance |
+| royalOffences | taxOffences |
+| royalOffences | treason |
+| sexual | assaultWithIntent |
+| sexual | assaultWithSodomiticalIntent |
+| sexual | bigamy |
+| sexual | indecentAssault |
+| sexual | keepingABrothel |
+| sexual | other |
+| sexual | rape |
+| sexual | sodomy |
+| theft | animalTheft |
+| theft | burglary |
+| theft | embezzlement |
+| theft | extortion |
+| theft | gameLawOffence |
+| theft | grandLarceny |
+| theft | housebreaking |
+| theft | mail |
+| theft | other |
+| theft | pettyLarceny |
+| theft | pocketpicking |
+| theft | receiving |
+| theft | shoplifting |
+| theft | simpleLarceny |
+| theft | stealingFromMaster |
+| theft | theftFromPlace |
+| violentTheft | highwayRobbery |
+| violentTheft | other |
+| violentTheft | robbery |
+
+
+### Verdicts
+
+| vercat | versubcat |
+| ------- | ----------- |
+| guilty |   |
+| guilty | chanceMedley |
+| guilty | insane |
+| guilty | lesserOffence |
+| guilty | manslaughter |
+| guilty | pleadedGuilty |
+| guilty | pleadedPartGuilty |
+| guilty | theftunder100s |
+| guilty | theftunder1s |
+| guilty | theftunder40s |
+| guilty | theftunder5s |
+| guilty | withRecommendation |
+| miscVerdict |  |
+| miscVerdict | noAgreement |
+| miscVerdict | postponed |
+| miscVerdict | unfitToPlead |
+| notGuilty |  |
+| notGuilty | accidentalDeath |
+| notGuilty | directed |
+| notGuilty | fault |
+| notGuilty | noEvidence |
+| notGuilty | nonComposMentis |
+| notGuilty | noProsecutor |
+| notGuilty | selfDefence |
+| notGuilty notGuilty | noEvidence |
+| specialVerdict |  |
+
+### Sentences
+
+| puncat | punsubcat |
+| -------- | ------------ |
+| corporal |  |
+| corporal | pillory |
+| corporal | privateWhipping |
+| corporal | publicWhipping |
+| corporal | whipping |
+| death |  |
+| death | burning |
+| death | deathAndDissection |
+| death | drawnAndQuartered |
+| death | executed |
+| death | hangingInChains |
+| death | respited |
+| death | respitedForPregnancy |
+| imprison |  |
+| imprison | hardLabour |
+| imprison | houseOfCorrection |
+| imprison | insanity |
+| imprison | newgate |
+| imprison | otherInstitution |
+| imprison | penalServitude |
+| imprison | preventiveDetention |
+| miscPunish |  |
+| miscPunish | branding |
+| miscPunish | fine |
+| miscPunish | forfeiture |
+| miscPunish | militaryNavalDuty |
+| miscPunish | sureties |
+| noPunish |  |
+| noPunish | pardon |
+| noPunish | sentenceRespited |
+| transport |   |
