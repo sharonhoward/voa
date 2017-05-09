@@ -22,6 +22,10 @@ The data has two components:
 
 This is version 2.0 of the data (OBV2), January 2017.
 
+Update, May 2017
+------------------
+
+I have added data extracted from OBC for scribes, publishers, printers and editors for each session (***obc2_producers.tsv***). 
 
 Summary data 
 ------------------
