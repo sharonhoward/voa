@@ -17,7 +17,7 @@ Data and code for exploratory visualisations (mainly using R or D3.js)
 
 ## Presentations
 
-* [Code and data](DP_conference_2017) for presentation at the Digital Panopticon launch conference, Liverpool, September 2017
+'Defendants' Voices and Silences in the Old Bailey Courtoom, 1781-1880': [code and data](DP_conference_2017) for presentation at the Digital Panopticon launch conference, Liverpool, September 2017
 
 ## Resources
 
