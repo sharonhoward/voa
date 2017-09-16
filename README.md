@@ -5,7 +5,7 @@ This repository contains data and other resources for the  [Voices of Authority]
 
 ## OBV
 
-Old Bailey Voices 1780-1880: data from the Old Bailey Corpus and Old Bailey Online.
+Old Bailey Voices 1780-1880 ([OBV v.2](OBV2)): data from the Old Bailey Corpus and Old Bailey Online.
 
 ## Defences
 
@@ -13,7 +13,7 @@ Prisoner defences 1751-1900 from the Old Bailey Online.
 
 ## Data visualisations
 
-Data and code for exploratory visualisations (mainly using R or D3.js)
+[Data and code](R_dataviz) for exploratory visualisations using R
 
 ## Presentations
 
