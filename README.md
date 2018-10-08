@@ -31,3 +31,7 @@ Unless otherwise stated, all data is released under a Creative Commons Attributi
 
 [![License: CC BY-SA 4.0](https://licensebuttons.net/l/by-sa/4.0/80x15.png)](http://creativecommons.org/licenses/by-sa/4.0/)
 
+
+The data is also in Zenodo:
+
+[![DOI](https://zenodo.org/badge/86437947.svg)](https://zenodo.org/badge/latestdoi/86437947)
